@@ -1,10 +1,14 @@
 /**
- * PROTOTYPE — Fancy Team for Squarespace
- * Rebuilds the list section with id "my-fancy-team" from its own data-current-context JSON.
- * Three variants, switchable with ?team-variant= or the floating bar (shown on localhost or with ?team-variant=):
- *   spotlight — one big portrait, a name list beside it, gentle auto-cycle
- *   arches    — tall arch cards on site accent colours, staggered rise + idle float
- *   index     — big typographic roster, colour sweep on hover, portrait follows the cursor
+ * Fancy Team for Squarespace
+ * Rebuilds a list section into a spotlight layout: one large portrait on soft accent
+ * shapes, with a list of names beside it that gently auto-cycles.
+ *
+ * Mount: give the list section an Anchor Link that starts with "my-fancy-team".
+ * Data: read from the section's own data-current-context JSON, so names, roles,
+ * photos and buttons are still edited in Squarespace as usual.
+ *
+ * Settings (optional, in Code Injection before this script):
+ *   window.wmFancyTeamSettings = { autoCycle: true, cycleSpeed: 5000 };
  **/
 
 (function () {
@@ -13,20 +17,21 @@
   const PLUGIN = "fancy-team";
   const NAMESPACE = "wmFancyTeam";
   const MOUNT_ID = "my-fancy-team";
-  const VARIANTS = {
-    spotlight: "Spotlight",
-    arches: "Arches",
-    index: "Index",
-  };
-  // The variant switcher shows when the script loads from localhost, or when ?team-variant= is in the URL.
-  const IS_PROTOTYPE =
-    /localhost|127\.0\.0\.1/.test(document.currentScript?.src || "") ||
-    new URLSearchParams(location.search).has("team-variant");
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   document
     .querySelectorAll(`[id^="${MOUNT_ID}"]`)
     .forEach(el => el.setAttribute("data-wm-plugin", PLUGIN));
+
+  const parseAttr = value => {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    const num = parseFloat(value);
+    return isNaN(num) || num.toString() !== value ? value : num;
+  };
+
+  const emitEvent = (type, detail = {}, el = document) =>
+    el.dispatchEvent(new CustomEvent(type, { bubbles: true, cancelable: true, detail }));
 
   const escapeHtml = value =>
     String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -37,19 +42,32 @@
     return div.textContent.trim();
   };
 
-  function currentVariant(el) {
-    const fromUrl = new URLSearchParams(location.search).get("team-variant");
-    const choice = fromUrl || el.dataset.variant || window[NAMESPACE + "Settings"]?.variant;
-    return VARIANTS[choice] ? choice : "spotlight";
-  }
-
   class FancyTeam {
+    static defaultSettings = {
+      autoCycle: true,
+      cycleSpeed: 5000,
+    };
+
+    static get userSettings() {
+      return window[NAMESPACE + "Settings"] || {};
+    }
+
     constructor(el) {
       this.el = el;
       this.original = el.querySelector(".user-items-list");
+      this.settings = { ...FancyTeam.defaultSettings, ...FancyTeam.userSettings, ...this.instanceSettings };
       this.cleanups = [];
       this.readData();
       this.init();
+    }
+
+    // data-auto-cycle="false" or data-cycle-speed="7000" on the section override the defaults.
+    get instanceSettings() {
+      const out = {};
+      for (const [key, value] of Object.entries(this.el.dataset)) {
+        if (key in FancyTeam.defaultSettings) out[key] = parseAttr(value);
+      }
+      return out;
     }
 
     readData() {
@@ -57,13 +75,11 @@
       const context = JSON.parse(holder.getAttribute("data-current-context"));
       const titleEl = this.el.querySelector(".list-section-title");
       this.title = titleEl ? titleEl.textContent.trim() : "";
-      this.members = (context.userItems || []).map((item, i) => {
+      this.members = (context.userItems || []).map(item => {
         const image = item.image || {};
         const focal = image.mediaFocalPoint || { x: 0.5, y: 0.5 };
         return {
-          index: i,
           name: item.title || "",
-          roleHtml: item.description || "",
           role: stripTags(item.description),
           image: image.assetUrl ? `${image.assetUrl}?format=1000w` : "",
           alt: image.altText || item.title || "",
@@ -76,15 +92,15 @@
     }
 
     init() {
-      this.variant = currentVariant(this.el);
+      emitEvent(`${NAMESPACE}:beforeInit`, { instance: this }, this.el);
       this.root = document.createElement("div");
-      this.root.className = `${PLUGIN}`;
-      this.root.dataset.variant = this.variant;
-      this.root.innerHTML = this[`render_${this.variant}`]();
+      this.root.className = PLUGIN;
+      this.root.innerHTML = this.render();
       this.original.style.display = "none";
       this.original.after(this.root);
-      this[`bind_${this.variant}`]?.();
+      this.bindEvents();
       this.revealOnScroll();
+      emitEvent(`${NAMESPACE}:afterInit`, { instance: this }, this.el);
     }
 
     destroy() {
@@ -92,18 +108,8 @@
       this.cleanups = [];
       this.root?.remove();
       this.original.style.display = "";
-    }
-
-    switchTo(variant) {
-      this.destroy();
-      this.el.dataset.variant = variant;
-      this.init();
-    }
-
-    /* Shared bits */
-
-    titleHtml() {
-      return this.title ? `<h2 class="ft-title">${escapeHtml(this.title)}</h2>` : "";
+      delete this.el.dataset.loadingState;
+      emitEvent(`${NAMESPACE}:destroy`, { instance: this }, this.el);
     }
 
     buttonHtml(m) {
@@ -112,9 +118,91 @@
       return `<a class="ft-link" href="${escapeHtml(m.buttonLink)}"${target}>${escapeHtml(m.buttonText)}<span aria-hidden="true"> →</span></a>`;
     }
 
-    imgHtml(m, cls = "", attrs = "") {
-      if (!m.image) return `<div class="ft-img ft-img--empty ${cls}" ${attrs}></div>`;
-      return `<img class="ft-img ${cls}" ${attrs} src="${m.image}" alt="${escapeHtml(m.alt)}" loading="lazy" style="object-position:${m.position}">`;
+    imgHtml(m) {
+      if (!m.image) return `<div class="ft-img ft-img--empty"></div>`;
+      return `<img class="ft-img" src="${m.image}" alt="${escapeHtml(m.alt)}" loading="lazy" style="object-position:${m.position}">`;
+    }
+
+    render() {
+      const frames = this.members
+        .map(
+          (m, i) => `
+          <figure class="ft-frame${i === 0 ? " is-active" : ""}" aria-hidden="${i !== 0}">
+            ${this.imgHtml(m)}
+          </figure>`
+        )
+        .join("");
+      const people = this.members
+        .map(
+          (m, i) => `
+          <li>
+            <button type="button" class="ft-person${i === 0 ? " is-active" : ""}" aria-pressed="${i === 0}">
+              <span class="ft-num">${String(i + 1).padStart(2, "0")}</span>
+              <span class="ft-text">
+                <span class="ft-name">${escapeHtml(m.name)}</span>
+                <span class="ft-role">${escapeHtml(m.role)}</span>
+              </span>
+              <span class="ft-progress" aria-hidden="true"></span>
+            </button>
+            ${this.buttonHtml(m)}
+          </li>`
+        )
+        .join("");
+      const title = this.title ? `<h2 class="ft-title">${escapeHtml(this.title)}</h2>` : "";
+      return `
+        ${title}
+        <div class="ft-spotlight" data-ft-reveal>
+          <div class="ft-stage">
+            <div class="ft-blob" aria-hidden="true"></div>
+            <div class="ft-blob ft-blob--two" aria-hidden="true"></div>
+            ${frames}
+          </div>
+          <ol class="ft-list">${people}</ol>
+        </div>`;
+    }
+
+    bindEvents() {
+      const frames = [...this.root.querySelectorAll(".ft-frame")];
+      const people = [...this.root.querySelectorAll(".ft-person")];
+      const wrap = this.root.querySelector(".ft-spotlight");
+      const { autoCycle, cycleSpeed } = this.settings;
+      let active = 0;
+      let timer = null;
+
+      const select = i => {
+        active = i;
+        frames.forEach((f, j) => {
+          f.classList.toggle("is-active", j === i);
+          f.setAttribute("aria-hidden", j !== i);
+        });
+        people.forEach((p, j) => {
+          p.classList.toggle("is-active", j === i);
+          p.setAttribute("aria-pressed", j === i);
+        });
+        emitEvent(`${NAMESPACE}:change`, { instance: this, index: i }, this.el);
+      };
+      const start = () => {
+        if (!autoCycle || REDUCED_MOTION || timer || people.length < 2) return;
+        wrap.classList.add("is-cycling");
+        wrap.style.setProperty("--ft-cycle", `${cycleSpeed}ms`);
+        timer = setInterval(() => select((active + 1) % people.length), cycleSpeed);
+      };
+      const stop = () => {
+        clearInterval(timer);
+        timer = null;
+        wrap.classList.remove("is-cycling");
+      };
+
+      people.forEach((p, i) => {
+        p.addEventListener("mouseenter", () => select(i));
+        p.addEventListener("focus", () => select(i));
+        p.addEventListener("click", () => select(i));
+      });
+      wrap.addEventListener("mouseenter", stop);
+      wrap.addEventListener("focusin", stop);
+      wrap.addEventListener("mouseleave", start);
+      start();
+      this.cleanups.push(stop);
     }
 
     revealOnScroll() {
@@ -135,231 +223,9 @@
       targets.forEach(t => io.observe(t));
       this.cleanups.push(() => io.disconnect());
     }
-
-    /* Variant: spotlight */
-
-    render_spotlight() {
-      const stage = this.members
-        .map(
-          (m, i) => `
-          <figure class="ft-spot-frame${i === 0 ? " is-active" : ""}" data-index="${i}" aria-hidden="${i !== 0}">
-            ${this.imgHtml(m)}
-          </figure>`
-        )
-        .join("");
-      const list = this.members
-        .map(
-          (m, i) => `
-          <li>
-            <button type="button" class="ft-spot-name${i === 0 ? " is-active" : ""}" data-index="${i}" aria-pressed="${i === 0}">
-              <span class="ft-spot-num">${String(i + 1).padStart(2, "0")}</span>
-              <span class="ft-spot-text">
-                <span class="ft-name">${escapeHtml(m.name)}</span>
-                <span class="ft-role">${escapeHtml(m.role)}</span>
-              </span>
-              <span class="ft-spot-progress" aria-hidden="true"></span>
-            </button>
-            ${this.buttonHtml(m)}
-          </li>`
-        )
-        .join("");
-      return `
-        ${this.titleHtml()}
-        <div class="ft-spot" data-ft-reveal>
-          <div class="ft-spot-stage">
-            <div class="ft-blob" aria-hidden="true"></div>
-            <div class="ft-blob ft-blob--two" aria-hidden="true"></div>
-            ${stage}
-          </div>
-          <ol class="ft-spot-list">${list}</ol>
-        </div>`;
-    }
-
-    bind_spotlight() {
-      const frames = [...this.root.querySelectorAll(".ft-spot-frame")];
-      const names = [...this.root.querySelectorAll(".ft-spot-name")];
-      const wrap = this.root.querySelector(".ft-spot");
-      let active = 0;
-      let timer = null;
-      const CYCLE_MS = 5000;
-
-      const select = i => {
-        active = i;
-        frames.forEach((f, j) => {
-          f.classList.toggle("is-active", j === i);
-          f.setAttribute("aria-hidden", j !== i);
-        });
-        names.forEach((n, j) => {
-          n.classList.toggle("is-active", j === i);
-          n.setAttribute("aria-pressed", j === i);
-        });
-      };
-      const start = () => {
-        if (REDUCED_MOTION || timer) return;
-        wrap.classList.add("is-cycling");
-        wrap.style.setProperty("--ft-cycle", `${CYCLE_MS}ms`);
-        timer = setInterval(() => select((active + 1) % names.length), CYCLE_MS);
-      };
-      const stop = () => {
-        clearInterval(timer);
-        timer = null;
-        wrap.classList.remove("is-cycling");
-      };
-
-      names.forEach((n, i) => {
-        n.addEventListener("mouseenter", () => select(i));
-        n.addEventListener("focus", () => select(i));
-        n.addEventListener("click", () => select(i));
-      });
-      wrap.addEventListener("mouseenter", stop);
-      wrap.addEventListener("focusin", stop);
-      wrap.addEventListener("mouseleave", start);
-      start();
-      this.cleanups.push(stop);
-    }
-
-    /* Variant: arches */
-
-    render_arches() {
-      const cards = this.members
-        .map(
-          (m, i) => `
-          <li class="ft-arch" data-ft-reveal style="--ft-i:${i}" data-tone="${i % 3}" tabindex="0">
-            <div class="ft-arch-shape">
-              <div class="ft-arch-fill" aria-hidden="true"></div>
-              ${this.imgHtml(m)}
-              ${m.buttonLink ? `<div class="ft-arch-role">${this.buttonHtml(m)}</div>` : ""}
-            </div>
-            <h3 class="ft-name">${escapeHtml(m.name)}</h3>
-            <p class="ft-role">${escapeHtml(m.role)}</p>
-          </li>`
-        )
-        .join("");
-      return `${this.titleHtml()}<ul class="ft-arches">${cards}</ul>`;
-    }
-
-    /* Variant: index */
-
-    render_index() {
-      const rows = this.members
-        .map(
-          (m, i) => `
-          <li class="ft-row" data-ft-reveal style="--ft-i:${i}" data-index="${i}" tabindex="0">
-            <span class="ft-row-sweep" aria-hidden="true"></span>
-            <span class="ft-row-num">${String(i + 1).padStart(2, "0")}</span>
-            ${this.imgHtml(m, "ft-row-thumb")}
-            <span class="ft-name">${escapeHtml(m.name)}</span>
-            <span class="ft-role">${escapeHtml(m.role)}</span>
-            ${this.buttonHtml(m)}
-          </li>`
-        )
-        .join("");
-      const follower = this.members.map((m, i) => this.imgHtml(m, "ft-follow-img", `data-index="${i}" alt=""`)).join("");
-      return `
-        ${this.titleHtml()}
-        <ol class="ft-index">${rows}</ol>
-        <div class="ft-follow" aria-hidden="true">${follower}</div>`;
-    }
-
-    bind_index() {
-      const list = this.root.querySelector(".ft-index");
-      const follow = this.root.querySelector(".ft-follow");
-      const imgs = [...follow.querySelectorAll(".ft-follow-img")];
-      const canHover = window.matchMedia("(hover: hover)").matches;
-      if (!canHover) return;
-
-      let target = { x: 0, y: 0 };
-      let pos = { x: 0, y: 0 };
-      let raf = null;
-      const ease = REDUCED_MOTION ? 1 : 0.14;
-
-      const tick = () => {
-        pos.x += (target.x - pos.x) * ease;
-        pos.y += (target.y - pos.y) * ease;
-        const tilt = Math.max(-8, Math.min(8, (target.x - pos.x) * 0.08));
-        follow.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0) rotate(${tilt}deg)`;
-        raf = requestAnimationFrame(tick);
-      };
-      const show = i => {
-        imgs.forEach((img, j) => img.classList.toggle("is-active", j === i));
-        follow.classList.add("is-visible");
-      };
-
-      list.querySelectorAll(".ft-row").forEach(row => {
-        const i = Number(row.dataset.index);
-        row.addEventListener("mouseenter", () => show(i));
-        row.addEventListener("focus", () => {
-          const r = row.getBoundingClientRect();
-          const o = this.root.getBoundingClientRect();
-          target = { x: r.left - o.left + r.width * 0.62, y: r.top - o.top + r.height / 2 };
-          pos = { ...target };
-          show(i);
-        });
-        row.addEventListener("blur", () => follow.classList.remove("is-visible"));
-      });
-      const local = e => {
-        const o = this.root.getBoundingClientRect();
-        return { x: e.clientX - o.left, y: e.clientY - o.top };
-      };
-      const onMove = e => {
-        target = local(e);
-      };
-      const onLeave = () => follow.classList.remove("is-visible");
-      list.addEventListener("mousemove", onMove);
-      list.addEventListener("mouseleave", onLeave);
-      list.addEventListener(
-        "mouseenter",
-        e => {
-          pos = local(e);
-        },
-        { once: true }
-      );
-      raf = requestAnimationFrame(tick);
-      this.cleanups.push(() => cancelAnimationFrame(raf));
-    }
-  }
-
-  /* Prototype-only switcher bar */
-
-  function mountSwitcher(instances) {
-    if (!IS_PROTOTYPE || !instances.length || document.querySelector(".ft-switcher")) return;
-    const keys = Object.keys(VARIANTS);
-    const bar = document.createElement("div");
-    bar.className = "ft-switcher";
-    bar.innerHTML = `
-      <button type="button" data-step="-1" aria-label="Previous variant">←</button>
-      <span class="ft-switcher-label"></span>
-      <button type="button" data-step="1" aria-label="Next variant">→</button>`;
-    document.body.appendChild(bar);
-    const label = bar.querySelector(".ft-switcher-label");
-
-    const go = step => {
-      const current = instances[0].variant;
-      const next = keys[(keys.indexOf(current) + step + keys.length) % keys.length];
-      const url = new URL(location.href);
-      url.searchParams.set("team-variant", next);
-      history.replaceState(null, "", url);
-      instances.forEach(inst => inst.switchTo(next));
-      render();
-    };
-    const render = () => {
-      const v = instances[0].variant;
-      label.textContent = `${keys.indexOf(v) + 1}/${keys.length} — ${VARIANTS[v]}`;
-    };
-    bar.addEventListener("click", e => {
-      const step = Number(e.target.closest("button")?.dataset.step);
-      if (step) go(step);
-    });
-    document.addEventListener("keydown", e => {
-      if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
-      if (e.key === "ArrowLeft") go(-1);
-      if (e.key === "ArrowRight") go(1);
-    });
-    render();
   }
 
   function init() {
-    const instances = [];
     document
       .querySelectorAll(`[data-wm-plugin="${PLUGIN}"]:not([data-loading-state])`)
       .forEach(el => {
@@ -367,13 +233,11 @@
         try {
           el[NAMESPACE] = new FancyTeam(el);
           el.dataset.loadingState = "loaded";
-          instances.push(el[NAMESPACE]);
         } catch (error) {
           el.dataset.loadingState = "error";
           console.error(`[${PLUGIN}] failed to initialize`, error);
         }
       });
-    mountSwitcher(instances);
   }
 
   window[NAMESPACE] = window[NAMESPACE] || { init };
@@ -389,7 +253,6 @@
     new MutationObserver((_, observer) => {
       if (!document.body.classList.contains("sqs-edit-mode-active")) return;
       document.querySelectorAll(`[data-wm-plugin="${PLUGIN}"]`).forEach(el => el[NAMESPACE]?.destroy());
-      document.querySelector(".ft-switcher")?.remove();
       observer.disconnect();
     }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   }
