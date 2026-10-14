@@ -1,0 +1,581 @@
+/**
+ * PROTOTYPE — Fancy Team styles
+ *
+ * Tokens (set any of these in Custom CSS to restyle):
+ *   --wm-ft-accent         site Accent        (blob, sweep, active marker)
+ *   --wm-ft-accent-light   site Light Accent  (arch fills, row sweep)
+ *   --wm-ft-accent-dark    site Dark Accent   (numbers, progress bar)
+ *   --wm-ft-text           section heading colour
+ *   --wm-ft-muted          section paragraph colour
+ *   --wm-ft-radius         portrait corner radius
+ *   --wm-ft-gap            grid gap
+ *   --wm-ft-ease           easing for every transition
+ **/
+
+[data-wm-plugin="fancy-team"] .fancy-team {
+  --ft-accent: var(--wm-ft-accent, hsl(var(--accent-hsl)));
+  --ft-accent-light: var(--wm-ft-accent-light, hsl(var(--lightAccent-hsl)));
+  --ft-accent-dark: var(--wm-ft-accent-dark, hsl(var(--darkAccent-hsl)));
+  --ft-text: var(--wm-ft-text, var(--headingLargeColor));
+  --ft-muted: var(--wm-ft-muted, var(--paragraphMediumColor));
+  --ft-bg: var(--siteBackgroundColor);
+  --ft-ease: var(--wm-ft-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  --ft-gap: var(--wm-ft-gap, clamp(20px, 3vw, 48px));
+  position: relative;
+  padding-block: 6.6vmax;
+  padding-inline: var(--sqs-site-gutter, 4vw);
+  color: var(--ft-text);
+}
+
+[data-wm-plugin="fancy-team"] .ft-title {
+  margin: 0 0 clamp(32px, 5vw, 72px);
+  text-align: center;
+  color: var(--ft-text);
+}
+
+[data-wm-plugin="fancy-team"] .ft-name {
+  display: block;
+  margin: 0;
+  font-family: var(--heading-font-font-family);
+  font-weight: var(--heading-font-font-weight);
+  font-style: var(--heading-font-font-style);
+  letter-spacing: var(--heading-font-letter-spacing);
+  line-height: 1.1;
+  color: var(--ft-text);
+}
+
+[data-wm-plugin="fancy-team"] .ft-role,
+[data-wm-plugin="fancy-team"] .ft-role p {
+  display: block;
+  margin: 0;
+  font-family: var(--body-font-font-family);
+  color: var(--ft-muted);
+  opacity: 0.85;
+}
+
+[data-wm-plugin="fancy-team"] .ft-link {
+  display: inline-block;
+  margin-top: 0.6em;
+  font-size: 0.85rem;
+  color: var(--ft-accent-dark);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+}
+
+[data-wm-plugin="fancy-team"] .ft-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-wm-plugin="fancy-team"] .ft-img--empty {
+  background: var(--ft-accent-light);
+}
+
+[data-wm-plugin="fancy-team"] :focus-visible {
+  outline: 2px solid var(--ft-accent-dark);
+  outline-offset: 4px;
+}
+
+/* Shared reveal: fade + rise, staggered by --ft-i */
+[data-wm-plugin="fancy-team"] [data-ft-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.9s var(--ft-ease),
+    transform 0.9s var(--ft-ease);
+  transition-delay: calc(var(--ft-i, 0) * 90ms);
+}
+
+[data-wm-plugin="fancy-team"] [data-ft-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* ───────────────────────── Variant: spotlight ───────────────────────── */
+
+[data-wm-plugin="fancy-team"] .ft-spot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 6vw, 110px);
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-stage {
+  position: relative;
+  justify-self: end;
+  width: min(100%, 440px);
+  aspect-ratio: 4 / 5;
+  isolation: isolate;
+}
+
+[data-wm-plugin="fancy-team"] .ft-blob {
+  position: absolute;
+  inset: 6% -6% -6% 6%;
+  z-index: -1;
+  background: var(--ft-accent);
+  border-radius: 58% 42% 46% 54% / 48% 56% 44% 52%;
+  animation: ft-morph 14s ease-in-out infinite alternate;
+  opacity: 0.85;
+}
+
+[data-wm-plugin="fancy-team"] .ft-blob--two {
+  inset: -5% 10% 12% -7%;
+  background: var(--ft-accent-light);
+  animation-duration: 18s;
+  animation-direction: alternate-reverse;
+  opacity: 0.9;
+  z-index: -2;
+}
+
+@keyframes ft-morph {
+  0%   { border-radius: 58% 42% 46% 54% / 48% 56% 44% 52%; transform: rotate(0deg); }
+  50%  { border-radius: 42% 58% 60% 40% / 56% 44% 56% 44%; transform: rotate(6deg) scale(1.02); }
+  100% { border-radius: 50% 50% 38% 62% / 40% 60% 40% 60%; transform: rotate(-4deg); }
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-frame {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--wm-ft-radius, 999px 999px 24px 24px);
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 0.8s var(--ft-ease),
+    transform 1.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-frame.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-list li {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid color-mix(in srgb, var(--ft-text) 15%, transparent);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-list li:last-child {
+  border-bottom: 1px solid color-mix(in srgb, var(--ft-text) 15%, transparent);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-list .ft-link {
+  margin: 0 0 1em 3.2rem;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 1.2rem;
+  width: 100%;
+  padding: 1.1em 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-num {
+  width: 2rem;
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--ft-accent-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-text {
+  transition: transform 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name .ft-name {
+  font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+  opacity: 0.4;
+  transition: opacity 0.5s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name .ft-role {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 0.95rem;
+  transition:
+    max-height 0.6s var(--ft-ease),
+    opacity 0.5s var(--ft-ease),
+    margin 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name.is-active .ft-name {
+  opacity: 1;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name.is-active .ft-spot-text {
+  transform: translateX(8px);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name.is-active .ft-role {
+  max-height: 3em;
+  opacity: 1;
+  margin-top: 0.35em;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-progress {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 100%;
+  background: var(--ft-accent-dark);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot-name.is-active .ft-spot-progress {
+  transform: scaleX(1);
+  transition: transform 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-spot.is-cycling .ft-spot-name.is-active .ft-spot-progress {
+  animation: ft-progress var(--ft-cycle, 5000ms) linear forwards;
+}
+
+@keyframes ft-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@media (max-width: 767px) {
+  [data-wm-plugin="fancy-team"] .ft-spot {
+    grid-template-columns: 1fr;
+  }
+  [data-wm-plugin="fancy-team"] .ft-spot-stage {
+    justify-self: center;
+    width: min(72vw, 380px);
+    margin: 0 auto 8px;
+  }
+}
+
+/* ───────────────────────── Variant: arches ───────────────────────── */
+
+[data-wm-plugin="fancy-team"] .ft-arches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--ft-gap) calc(var(--ft-gap) * 0.75);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch {
+  flex: 0 1 clamp(150px, calc((100% - 4 * var(--ft-gap) * 0.75) / 5), 260px);
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  outline: none;
+}
+
+/* Idle float runs on the inner shape so it never fights the reveal transform */
+[data-wm-plugin="fancy-team"] .ft-arch-shape {
+  position: relative;
+  aspect-ratio: 3 / 4.2;
+  margin-bottom: 1.1rem;
+  overflow: hidden;
+  border-radius: var(--wm-ft-radius, 999px 999px 18px 18px);
+  background: var(--ft-tone);
+  animation: ft-float 7s ease-in-out infinite;
+  animation-delay: calc(var(--ft-i, 0) * -1.3s);
+  transition: transform 0.6s var(--ft-ease), box-shadow 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch[data-tone="0"] { --ft-tone: var(--ft-accent-light); }
+[data-wm-plugin="fancy-team"] .ft-arch[data-tone="1"] { --ft-tone: var(--ft-accent); }
+[data-wm-plugin="fancy-team"] .ft-arch[data-tone="2"] { --ft-tone: color-mix(in srgb, var(--ft-accent-dark) 70%, var(--ft-bg)); }
+
+@keyframes ft-float {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -8px; }
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch-shape .ft-img {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: multiply;
+  filter: grayscale(0.25) contrast(1.05);
+  transform: scale(1.02);
+  transition:
+    transform 1.2s var(--ft-ease),
+    filter 0.8s var(--ft-ease),
+    mix-blend-mode 0s 0.4s;
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch-role {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 2.4rem 1rem 1.2rem;
+  font-size: 0.9rem;
+  color: var(--ft-text);
+  background: linear-gradient(to top, color-mix(in srgb, var(--ft-bg) 92%, transparent) 55%, transparent);
+  transform: translateY(101%);
+  transition: transform 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch-role p {
+  margin: 0;
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch:is(:hover, :focus-visible) .ft-arch-shape {
+  animation-play-state: paused;
+  transform: translateY(-6px);
+  box-shadow: 0 24px 40px -24px color-mix(in srgb, var(--ft-text) 55%, transparent);
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch:is(:hover, :focus-visible) .ft-img {
+  mix-blend-mode: normal;
+  filter: none;
+  transform: scale(1.08);
+  transition:
+    transform 1.2s var(--ft-ease),
+    filter 0.8s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch:is(:hover, :focus-visible) .ft-arch-role {
+  transform: none;
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch:focus-visible .ft-arch-shape {
+  outline: 2px solid var(--ft-accent-dark);
+  outline-offset: 4px;
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch .ft-name {
+  font-size: clamp(1.1rem, 1.5vw, 1.35rem);
+}
+
+[data-wm-plugin="fancy-team"] .ft-arch > .ft-role {
+  margin-top: 0.3em;
+  font-size: 0.9rem;
+}
+
+/* ───────────────────────── Variant: index ───────────────────────── */
+
+[data-wm-plugin="fancy-team"] .ft-index {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid color-mix(in srgb, var(--ft-text) 20%, transparent);
+}
+
+[data-wm-plugin="fancy-team"] .ft-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 1.5rem;
+  margin: 0;
+  padding: clamp(18px, 2.4vw, 32px) 1rem;
+  overflow: hidden;
+  border-bottom: 1px solid color-mix(in srgb, var(--ft-text) 20%, transparent);
+  outline: none;
+  cursor: default;
+}
+
+[data-wm-plugin="fancy-team"] .ft-row-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--ft-accent-light);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.55s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-row > :not(.ft-row-sweep) {
+  position: relative;
+  z-index: 1;
+}
+
+[data-wm-plugin="fancy-team"] .ft-row-num {
+  font-size: 0.8rem;
+  color: var(--ft-accent-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-wm-plugin="fancy-team"] .ft-row .ft-name {
+  font-size: clamp(1.8rem, 4.6vw, 4rem);
+  transition: transform 0.6s var(--ft-ease), letter-spacing 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-row .ft-role {
+  font-size: 0.95rem;
+  text-align: right;
+  transition: transform 0.6s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-row .ft-link {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin: 0;
+}
+
+[data-wm-plugin="fancy-team"] .ft-row-thumb {
+  display: none;
+}
+
+[data-wm-plugin="fancy-team"] .ft-row:is(:hover, :focus-visible) .ft-row-sweep {
+  transform: scaleY(1);
+}
+
+[data-wm-plugin="fancy-team"] .ft-row:is(:hover, :focus-visible) .ft-name {
+  transform: translateX(14px);
+}
+
+[data-wm-plugin="fancy-team"] .ft-row:is(:hover, :focus-visible) .ft-role {
+  transform: translateX(-8px);
+}
+
+[data-wm-plugin="fancy-team"] .ft-follow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: clamp(160px, 16vw, 240px);
+  aspect-ratio: 4 / 5;
+  margin: calc(clamp(160px, 16vw, 240px) * -0.625) 0 0 40px;
+  pointer-events: none;
+  border-radius: var(--wm-ft-radius, 999px 999px 16px 16px);
+  overflow: hidden;
+  background: var(--ft-accent);
+  box-shadow: 0 30px 50px -30px color-mix(in srgb, var(--ft-text) 70%, transparent);
+  opacity: 0;
+  scale: 0.6;
+  transition:
+    opacity 0.35s var(--ft-ease),
+    scale 0.5s var(--ft-ease);
+  will-change: transform;
+}
+
+[data-wm-plugin="fancy-team"] .ft-follow.is-visible {
+  opacity: 1;
+  scale: 1;
+}
+
+[data-wm-plugin="fancy-team"] .ft-follow-img {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1.12);
+  transition:
+    opacity 0.4s var(--ft-ease),
+    transform 0.8s var(--ft-ease);
+}
+
+[data-wm-plugin="fancy-team"] .ft-follow-img.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+/* Touch screens: no cursor to follow, so show a small portrait inline */
+@media (hover: none), (max-width: 767px) {
+  [data-wm-plugin="fancy-team"] .ft-follow {
+    display: none;
+  }
+  [data-wm-plugin="fancy-team"] .ft-row {
+    grid-template-columns: 56px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.4rem 1rem;
+    padding-inline: 0;
+  }
+  [data-wm-plugin="fancy-team"] .ft-row-num {
+    display: none;
+  }
+  [data-wm-plugin="fancy-team"] .ft-row-thumb {
+    display: block;
+    grid-row: span 2;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--ft-accent);
+  }
+  [data-wm-plugin="fancy-team"] .ft-row .ft-role {
+    grid-column: 2;
+    text-align: left;
+  }
+  [data-wm-plugin="fancy-team"] .ft-row .ft-name {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-wm-plugin="fancy-team"] .ft-arch {
+    flex-basis: calc(50% - var(--ft-gap) * 0.375);
+  }
+}
+
+/* ───────────────────────── Motion preferences ───────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-wm-plugin="fancy-team"] *,
+  [data-wm-plugin="fancy-team"] *::before,
+  [data-wm-plugin="fancy-team"] *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ───────────────────────── Prototype switcher (localhost only) ───────────────────────── */
+
+.ft-switcher {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  transform: translateX(-50%);
+  font: 600 13px/1 system-ui, sans-serif;
+  color: #fff;
+  background: #111;
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.ft-switcher button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: rgb(255 255 255 / 0.12);
+  cursor: pointer;
+  font: inherit;
+}
+
+.ft-switcher button:hover {
+  background: rgb(255 255 255 / 0.25);
+}
+
+.ft-switcher-label {
+  min-width: 130px;
+  padding: 0 10px;
+  text-align: center;
+  white-space: nowrap;
+}
